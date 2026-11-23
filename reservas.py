@@ -2,175 +2,243 @@
 # UNIVERSIDAD NACIONAL ABIERTA Y A DISTANCIA - UNAD
 # Curso: Programacion (213023) - Fase 4: Componente Practico
 # Modulo: reservas.py
-# Descripcion: Gestion transaccional de reservas con manejo avanzado de excepciones.
+# Descripcion: Gestion de reservas con control de estados y manejo de errores.
 # ==============================================================================
 
-from modelos_base import EntidadBase, Cliente
-from servicios import Servicio
-from excepciones_y_logs import (
+from modelos_base import EntidadBase, Cliente  # Entidad raiz y modelo Cliente
+from servicios import Servicio  # Clase abstracta base de servicios
+from excepciones_y_logs import (  # Excepciones y gestor de logs del sistema
     DatoInvalidoError,
     ParametroFaltanteError,
-    ServicioNoDisponibleError,
     ReservaInvalidaError,
     OperacionNoPermitidaError,
-    GestorLogs
+    GestorLogs,
 )
 
 
 class Reserva(EntidadBase):
-    """Integra un Cliente, un Servicio y la duracion para gestionar el ciclo de reserva."""
+    """Representa una reserva de un servicio para un cliente con control de estados."""
 
-    # Estados validos del ciclo de vida de una reserva
-    ESTADO_PENDIENTE = "PENDIENTE"
-    ESTADO_CONFIRMADA = "CONFIRMADA"
-    ESTADO_PROCESADA = "PROCESADA"
-    ESTADO_CANCELADA = "CANCELADA"
+    ESTADOS_VALIDOS = ("PENDIENTE", "CONFIRMADA", "CANCELADA", "COMPLETADA")
 
-    def __init__(self, id_reserva: str, cliente: Cliente, servicio: Servicio, duracion_horas: int, logger: GestorLogs):
+    def __init__(
+        self,
+        id_reserva: str,
+        cliente: Cliente,
+        servicio: Servicio,
+        horas: int,
+        impuesto: float = 0.19,
+        descuento: float = 0.0,
+        gestor_logs: GestorLogs | None = None,
+    ):
+        # Inicializa ID y fecha de registro en EntidadBase
         super().__init__(id_reserva)
-        # Valida que se reciban instancias reales de Cliente y Servicio
-        if not isinstance(cliente, Cliente):
-            raise ParametroFaltanteError("La reserva requiere una instancia valida de Cliente.")
-        if not isinstance(servicio, Servicio):
-            raise ParametroFaltanteError("La reserva requiere una instancia valida de Servicio.")
-
+        # Inicializa el gestor de auditoria en archivo .log
+        self._logger = gestor_logs if gestor_logs is not None else GestorLogs()
+        # Asigna y valida las relaciones y parametros de la reserva
         self.cliente = cliente
         self.servicio = servicio
-        self.logger = logger
-        self._estado = self.ESTADO_PENDIENTE
-        self._costo_total = 0.0
-
-        # Valida la duracion en horas
-        self.duracion_horas = duracion_horas
+        self.horas = horas
+        self.impuesto = impuesto
+        self.descuento = descuento
+        # Toda reserva inicia en estado PENDIENTE
+        self._estado = "PENDIENTE"
+        # Calcula el total inicial aplicando manejo de excepciones
+        self._total = self._calcular_total_seguro()
+        # Valida la consistencia general de la reserva
         self.validar()
+        # Registra la creacion en el archivo de logs
+        self._logger.registrar_evento(
+            "INFO",
+            "reservas.py",
+            f"Reserva '{self.id_entidad}' creada en estado {self.estado} para '{self.cliente.nombre}'.",
+        )
 
     @property
-    def duracion_horas(self) -> int:
-        return self._duracion_horas
+    def cliente(self) -> Cliente:
+        """Retorna el cliente asociado."""
+        return self.__cliente
 
-    @duracion_horas.setter
-    def duracion_horas(self, valor: int):
-        # Valida que la duracion sea un entero positivo (1 a 720 horas)
-        if not isinstance(valor, int) or isinstance(valor, bool) or valor <= 0 or valor > 720:
-            raise ReservaInvalidaError(f"Duracion de reserva invalida: '{valor}'. Debe ser entre 1 y 720 horas.")
-        self._duracion_horas = valor
+    @cliente.setter
+    def cliente(self, valor: Cliente):
+        # Verifica que sea una instancia valida de Cliente
+        if not isinstance(valor, Cliente):
+            raise DatoInvalidoError("Debe asignar una instancia valida de Cliente.")
+        self.__cliente = valor
+
+    @property
+    def servicio(self) -> Servicio:
+        """Retorna el servicio reservado."""
+        return self.__servicio
+
+    @servicio.setter
+    def servicio(self, valor: Servicio):
+        # Verifica que sea una instancia valida de Servicio
+        if not isinstance(valor, Servicio):
+            raise DatoInvalidoError("Debe asignar una instancia valida de Servicio.")
+        self.__servicio = valor
+
+    @property
+    def horas(self) -> int:
+        """Retorna la cantidad de horas reservadas."""
+        return self.__horas
+
+    @horas.setter
+    def horas(self, valor: int):
+        # Convierte a entero y encadena la excepcion si el valor no es valido
+        try:
+            horas_int = int(valor)
+        except (TypeError, ValueError) as exc:
+            raise ReservaInvalidaError(f"Cantidad de horas invalida: '{valor}'.") from exc
+        if horas_int <= 0:
+            raise ReservaInvalidaError("Las horas de la reserva deben ser mayores a cero.")
+        self.__horas = horas_int
+
+    @property
+    def impuesto(self) -> float:
+        """Retorna el porcentaje de impuesto aplicado."""
+        return self.__impuesto
+
+    @impuesto.setter
+    def impuesto(self, valor: float):
+        # Valida que el impuesto sea numerico y no negativo
+        try:
+            imp = float(valor)
+        except (TypeError, ValueError) as exc:
+            raise DatoInvalidoError(f"Impuesto invalido: '{valor}'.") from exc
+        if imp < 0 or imp > 1:
+            raise DatoInvalidoError("El impuesto debe estar entre 0.0 y 1.0 (ejemplo: 0.19).")
+        self.__impuesto = imp
+
+    @property
+    def descuento(self) -> float:
+        """Retorna el porcentaje de descuento aplicado."""
+        return self.__descuento
+
+    @descuento.setter
+    def descuento(self, valor: float):
+        # Valida que el descuento este en un rango valido
+        try:
+            desc = float(valor)
+        except (TypeError, ValueError) as exc:
+            raise DatoInvalidoError(f"Descuento invalido: '{valor}'.") from exc
+        if desc < 0 or desc >= 1:
+            raise DatoInvalidoError("El descuento debe estar entre 0.0 y menor a 1.0.")
+        self.__descuento = desc
 
     @property
     def estado(self) -> str:
+        """Retorna el estado actual de la reserva."""
         return self._estado
 
     @property
-    def costo_total(self) -> float:
-        return self._costo_total
+    def total(self) -> float:
+        """Retorna el valor total calculado de la reserva."""
+        return self._total
+
+    def _calcular_total_seguro(self) -> float:
+        """Calcula el costo usando try/except/else/finally y encadenando errores."""
+        try:
+            # Invoca el metodo polimorfico calcular_costo del servicio
+            total_calc = self.servicio.calcular_costo(
+                self.horas,
+                impuesto=self.impuesto,
+                descuento=self.descuento,
+            )
+        except Exception as exc:
+            # Registra el error en el log y encadena la excepcion original
+            self._logger.registrar_evento(
+                "ERROR",
+                "reservas.py",
+                f"Fallo al calcular el total de la reserva '{self.id_entidad}'.",
+                detalle_error=exc,
+            )
+            raise ReservaInvalidaError(
+                f"No fue posible calcular el costo de la reserva '{self.id_entidad}'."
+            ) from exc
+        else:
+            # Se ejecuta solo cuando el calculo es exitoso
+            self._logger.registrar_evento(
+                "INFO",
+                "reservas.py",
+                f"Total calculado para reserva '{self.id_entidad}': ${total_calc:,.2f}.",
+            )
+            return total_calc
+        finally:
+            # Mantiene el flujo controlado al cerrar el bloque de calculo
+            pass
+
+    def confirmar(self) -> None:
+        """Confirma una reserva PENDIENTE si el servicio esta disponible."""
+        # Solo permite confirmar desde PENDIENTE
+        if self._estado != "PENDIENTE":
+            raise OperacionNoPermitidaError(
+                f"No se puede confirmar la reserva '{self.id_entidad}' en estado '{self._estado}'."
+            )
+        # Verifica que el servicio siga disponible
+        if not self.servicio.disponible:
+            raise ReservaInvalidaError(
+                f"El servicio '{self.servicio.nombre_servicio}' no esta disponible para confirmar."
+            )
+        # Recalcula el total y marca el servicio como ocupado
+        self._total = self._calcular_total_seguro()
+        self.servicio.disponible = False
+        self._estado = "CONFIRMADA"
+        self._logger.registrar_evento(
+            "INFO",
+            "reservas.py",
+            f"Reserva '{self.id_entidad}' CONFIRMADA por ${self._total:,.2f}.",
+        )
+
+    def cancelar(self, motivo: str = "Cancelada por el usuario") -> None:
+        """Cancela una reserva si no esta completada y libera el servicio si estaba confirmada."""
+        # Impide cancelar reservas ya completadas
+        if self._estado == "COMPLETADA":
+            raise OperacionNoPermitidaError(
+                f"No se puede cancelar la reserva '{self.id_entidad}' porque ya fue completada."
+            )
+        # Impide cancelar una reserva ya cancelada
+        if self._estado == "CANCELADA":
+            raise OperacionNoPermitidaError(
+                f"La reserva '{self.id_entidad}' ya se encuentra cancelada."
+            )
+        # Si estaba confirmada, libera la disponibilidad del servicio
+        if self._estado == "CONFIRMADA":
+            self.servicio.disponible = True
+        self._estado = "CANCELADA"
+        self._logger.registrar_evento(
+            "WARNING",
+            "reservas.py",
+            f"Reserva '{self.id_entidad}' CANCELADA. Motivo: {motivo.strip() or 'Sin motivo'}.",
+        )
+
+    def completar(self) -> None:
+        """Marca una reserva CONFIRMADA como COMPLETADA."""
+        # Exige estado CONFIRMADA previo
+        if self._estado != "CONFIRMADA":
+            raise OperacionNoPermitidaError(
+                f"Solo se pueden completar reservas CONFIRMADA. Estado actual: '{self._estado}'."
+            )
+        self._estado = "COMPLETADA"
+        self.servicio.disponible = True
+        self._logger.registrar_evento(
+            "INFO",
+            "reservas.py",
+            f"Reserva '{self.id_entidad}' COMPLETADA.",
+        )
 
     def validar(self) -> bool:
-        """Verifica integridad de la reserva antes de confirmar."""
-        self.cliente.validar()
-        self.servicio.validar()
+        """Valida integridad de cliente, servicio, horas y estado."""
+        if not self.__cliente or not self.__servicio:
+            raise ParametroFaltanteError("La reserva debe contar con cliente y servicio.")
+        if self._estado not in self.ESTADOS_VALIDOS:
+            raise ReservaInvalidaError(f"Estado no valido: '{self._estado}'.")
         return True
 
-    def confirmar(self, descuento: float = 0.0, impuesto: float = 0.19):
-        """
-        Confirma la reserva verificando disponibilidad y calculando costos.
-        Implementa try / except / else / finally y encadenamiento de excepciones.
-        """
-        try:
-            # Verifica que la reserva este en estado PENDIENTE
-            if self._estado != self.ESTADO_PENDIENTE:
-                raise OperacionNoPermitidaError(
-                    f"No se puede confirmar la reserva {self.id_entidad} porque su estado es {self._estado}."
-                )
-
-            # Verifica que el servicio no haya sido ocupado por otra reserva activa
-            if not self.servicio.disponible:
-                raise ServicioNoDisponibleError(
-                    f"El servicio '{self.servicio.nombre_servicio}' ({self.servicio.id_entidad}) no esta disponible."
-                )
-
-            # Valida rango logico del descuento (0% a 50%)
-            if not (0.0 <= descuento <= 0.50):
-                raise DatoInvalidoError(f"Descuento fuera de rango permitido (0.0 - 0.50): {descuento}")
-
-            # Calcula costo polimorficamente segun el tipo de servicio
-            self._costo_total = self.servicio.calcular_costo(
-                horas=self.duracion_horas,
-                impuesto=impuesto,
-                descuento=descuento
-            )
-
-        except (ServicioNoDisponibleError, OperacionNoPermitidaError) as err_negocio:
-            # Registra error de negocio en log y relanza sin perder traza
-            self.logger.registrar_evento("ERROR", "Reservas", f"Fallo al confirmar {self.id_entidad}", err_negocio)
-            raise
-        except Exception as err_inesperado:
-            # Encadena cualquier otro fallo dentro de ReservaInvalidaError usando 'from'
-            error_encadenado = ReservaInvalidaError(
-                f"Error critico calculando o confirmando reserva {self.id_entidad}."
-            )
-            error_encadenado.__cause__ = err_inesperado
-            self.logger.registrar_evento("ERROR", "Reservas", "Excepcion encadenada en confirmacion", error_encadenado)
-            raise error_encadenado from err_inesperado
-        else:
-            # Bloque else: solo se ejecuta si NO hubo ninguna excepcion en el try
-            self._estado = self.ESTADO_CONFIRMADA
-            self.servicio.disponible = False  # Bloquea el recurso para evitar doble reserva
-            self.logger.registrar_evento(
-                "INFO",
-                "Reservas",
-                f"Reserva {self.id_entidad} CONFIRMADA para {self.cliente.nombre}. Total: ${self._costo_total:,.2f}"
-            )
-        finally:
-            # Bloque finally: auditoria de cierre de transaccion siempre ejecutada
-            self.logger.registrar_evento(
-                "INFO",
-                "Reservas",
-                f"Auditoria de intento de confirmacion finalizada para {self.id_entidad} (Estado: {self._estado})."
-            )
-
-    def cancelar(self, motivo: str = "Solicitud del cliente"):
-        """Cancela una reserva activa y libera nuevamente la disponibilidad del servicio."""
-        try:
-            if self._estado == self.ESTADO_CANCELADA:
-                raise OperacionNoPermitidaError(f"La reserva {self.id_entidad} ya se encuentra CANCELADA.")
-            if self._estado == self.ESTADO_PROCESADA:
-                raise OperacionNoPermitidaError(f"No se puede cancelar la reserva {self.id_entidad} porque ya fue PROCESADA.")
-
-            # Si estaba confirmada, libera el recurso ocupado
-            if self._estado == self.ESTADO_CONFIRMADA:
-                self.servicio.disponible = True
-
-            self._estado = self.ESTADO_CANCELADA
-            self.logger.registrar_evento(
-                "WARNING",
-                "Reservas",
-                f"Reserva {self.id_entidad} CANCELADA. Motivo: {motivo}. Servicio liberado."
-            )
-        except OperacionNoPermitidaError as err:
-            self.logger.registrar_evento("ERROR", "Reservas", f"Cancelacion rechazada en {self.id_entidad}", err)
-            raise
-
-    def procesar(self):
-        """Finaliza la ejecucion del servicio reservado y lo deja disponible para futuros clientes."""
-        try:
-            if self._estado != self.ESTADO_CONFIRMADA:
-                raise OperacionNoPermitidaError(
-                    f"Solo se pueden procesar reservas CONFIRMADAS. Estado actual de {self.id_entidad}: {self._estado}."
-                )
-        except OperacionNoPermitidaError as err:
-            self.logger.registrar_evento("ERROR", "Reservas", f"Procesamiento fallido en {self.id_entidad}", err)
-            raise
-        else:
-            self._estado = self.ESTADO_PROCESADA
-            self.servicio.disponible = True  # El servicio vuelve a estar libre tras culminar
-            self.logger.registrar_evento(
-                "INFO",
-                "Reservas",
-                f"Reserva {self.id_entidad} PROCESADA y cerrada con exito. Facturado: ${self._costo_total:,.2f}"
-            )
-
     def obtener_resumen(self) -> str:
+        """Retorna un resumen legible de la reserva."""
         return (
             f"Reserva [{self.id_entidad}] | Estado: {self.estado} | "
             f"Cliente: {self.cliente.nombre} | Servicio: {self.servicio.nombre_servicio} | "
-            f"Horas: {self.duracion_horas} | Total: ${self.costo_total:,.2f}"
+            f"Horas: {self.horas} | Total: ${self.total:,.2f}"
         )

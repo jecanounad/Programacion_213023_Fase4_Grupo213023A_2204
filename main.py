@@ -43,11 +43,25 @@ class SistemaSoftwareFJ:
         print(f"  [OK] {servicio_obj.obtener_resumen()}")
         return servicio_obj
 
-    def crear_y_confirmar_reserva(self, id_r: str, cliente: Cliente, servicio: Servicio, horas: int, desc: float = 0.0):
+    def crear_y_confirmar_reserva(
+        self,
+        id_r: str,
+        cliente: Cliente,
+        servicio: Servicio,
+        horas: int,
+        desc: float = 0.0,
+    ):
         """Crea una reserva y ejecuta su confirmacion manteniendo el sistema estable ante fallos."""
         try:
-            reserva = Reserva(id_r, cliente, servicio, horas, self.logger)
-            reserva.confirmar(descuento=desc)
+            reserva = Reserva(
+                id_r,
+                cliente,
+                servicio,
+                horas,
+                descuento=desc,
+                gestor_logs=self.logger,
+            )
+            reserva.confirmar()
             self.reservas.append(reserva)
             print(f"  [OK] {reserva.obtener_resumen()}")
             return reserva
@@ -155,7 +169,7 @@ def ejecutar_simulacion():
     res_4 = sistema.crear_y_confirmar_reserva("RES-04", cli_2, srv_asesoria, horas=3, desc=0.05)
     if res_4:
         try:
-            res_4.procesar()
+            res_4.completar()
             print(f"  [OK] Reserva finalizada: {res_4.obtener_resumen()}")
         except SoftwareFJError as err:
             print(f"  [ERROR CONTROLADO - {err.codigo_error}] {err}")
@@ -172,7 +186,7 @@ def ejecutar_simulacion():
 
     # Resumen final del estado en memoria
     print("\n==========================================================================")
-    print(f"SIMULACION COMPLETADA SIN INTERRUPCIONES.")
+    print("SIMULACION COMPLETADA SIN INTERRUPCIONES.")
     print(f"Clientes activos: {len(sistema.clientes)} | Servicios: {len(sistema.servicios)} | Reservas registradas: {len(sistema.reservas)}")
     print("Todos los eventos y errores fueron registrados en 'sistema_fj.log'.")
     print("==========================================================================")

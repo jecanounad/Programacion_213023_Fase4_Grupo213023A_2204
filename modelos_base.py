@@ -5,8 +5,8 @@
 # Descripcion: Clase abstracta general del sistema y clase Cliente encapsulada.
 # ==============================================================================
 
-from abc import ABC, abstractmethod  # Herramientas para definir clases y metodos abstractos
-from datetime import datetime          # Manejo de marcas de tiempo de creacion
+from abc import ABC, abstractmethod
+from datetime import datetime
 from excepciones_y_logs import DatoInvalidoError, ParametroFaltanteError
 
 
@@ -14,32 +14,25 @@ class EntidadBase(ABC):
     """Clase abstracta raiz que representa cualquier entidad gestionada en Software FJ."""
 
     def __init__(self, id_entidad: str):
-        # Valida que el identificador no sea vacio ni compuesto solo por espacios
         if not id_entidad or not str(id_entidad).strip():
             raise ParametroFaltanteError("El ID de la entidad es obligatorio y no puede estar vacio.")
-        # Atributo protegido para el identificador unico
         self._id_entidad = str(id_entidad).strip()
-        # Registra automaticamente la fecha de creacion en memoria
         self._fecha_registro = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
     @property
     def id_entidad(self) -> str:
-        """Propiedad de solo lectura para consultar el ID de la entidad."""
         return self._id_entidad
 
     @property
     def fecha_registro(self) -> str:
-        """Propiedad de solo lectura para consultar la fecha de registro."""
         return self._fecha_registro
 
     @abstractmethod
     def validar(self) -> bool:
-        """Metodo abstracto que obliga a las subclases a implementar sus propias reglas."""
         pass
 
     @abstractmethod
     def obtener_resumen(self) -> str:
-        """Metodo abstracto para generar una representacion legible de la entidad."""
         pass
 
 
@@ -47,14 +40,11 @@ class Cliente(EntidadBase):
     """Representa un cliente de Software FJ con encapsulacion y validaciones estrictas."""
 
     def __init__(self, id_cliente: str, nombre: str, documento: str, correo: str, telefono: str):
-        # Invoca al constructor de la clase abstracta EntidadBase
         super().__init__(id_cliente)
-        # Inicializa atributos privados mediante sus setters para activar las validaciones
         self.nombre = nombre
         self.documento = documento
         self.correo = correo
         self.telefono = telefono
-        # Ejecuta la validacion integral al finalizar la construccion
         self.validar()
 
     @property
@@ -63,7 +53,6 @@ class Cliente(EntidadBase):
 
     @nombre.setter
     def nombre(self, valor: str):
-        # Verifica que el nombre tenga al menos 3 caracteres y no sea numerico
         if not valor or len(valor.strip()) < 3 or valor.strip().isdigit():
             raise DatoInvalidoError(f"Nombre de cliente invalido: '{valor}'. Debe tener al menos 3 letras.")
         self.__nombre = valor.strip()
@@ -74,7 +63,6 @@ class Cliente(EntidadBase):
 
     @documento.setter
     def documento(self, valor: str):
-        # Verifica que el documento contenga solo digitos y longitud valida (6 a 15)
         doc_limpio = str(valor).strip() if valor is not None else ""
         if not doc_limpio.isdigit() or not (6 <= len(doc_limpio) <= 15):
             raise DatoInvalidoError(f"Documento invalido: '{valor}'. Debe ser numerico (6 a 15 digitos).")
@@ -86,7 +74,6 @@ class Cliente(EntidadBase):
 
     @correo.setter
     def correo(self, valor: str):
-        # Verifica estructura basica de correo electronico con '@' y '.'
         correo_limpio = str(valor).strip() if valor is not None else ""
         if "@" not in correo_limpio or "." not in correo_limpio.split("@")[-1]:
             raise DatoInvalidoError(f"Correo electronico invalido: '{valor}'.")
@@ -98,20 +85,17 @@ class Cliente(EntidadBase):
 
     @telefono.setter
     def telefono(self, valor: str):
-        # Verifica que el numero telefonico tenga entre 7 y 12 digitos
         tel_limpio = str(valor).strip() if valor is not None else ""
         if not tel_limpio.isdigit() or not (7 <= len(tel_limpio) <= 12):
             raise DatoInvalidoError(f"Telefono invalido: '{valor}'. Debe contener entre 7 y 12 digitos.")
         self.__telefono = tel_limpio
 
     def validar(self) -> bool:
-        """Confirma que todos los campos encapsulados del cliente cumplan integridad."""
         if not all([self.__nombre, self.__documento, self.__correo, self.__telefono]):
             raise ParametroFaltanteError("Faltan datos obligatorios en el perfil del cliente.")
         return True
 
     def obtener_resumen(self) -> str:
-        """Retorna una cadena formateada con la ficha tecnica del cliente."""
         return (
             f"Cliente [{self.id_entidad}] | Nombre: {self.nombre} | "
             f"Doc: {self.documento} | Email: {self.correo} | Tel: {self.telefono}"

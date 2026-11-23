@@ -7,8 +7,93 @@
 
 from abc import abstractmethod
 from modelos_base import EntidadBase
-from excepciones_y_logs import DatoInvalidoError, ParametroFaltanteError
+from excepciones_y_logs import DatoInvalidoError, ParametroFaltanteError, ServicioNoDisponibleError
 
+class Servicio(EntidadBase):
+    """Clase abstracta que representa un servicio ofrecido por Software FJ."""
+
+    def __init__(self, id_servicio: str, nombre: str, tarifa_base: float, disponible: bool = True):
+        # Inicializa el identificador y la fecha de registro en EntidadBase
+        super().__init__(id_servicio)
+        # Asigna atributos privados mediante setters para validar en cada cambio
+        self.nombre = nombre
+        self.tarifa_base = tarifa_base
+        self.disponible = disponible
+        # Ejecuta la validacion general del servicio
+        self.validar()
+
+    @property
+    def nombre(self) -> str:
+        """Retorna el nombre del servicio."""
+        return self.__nombre
+
+    @nombre.setter
+    def nombre(self, valor: str):
+        # Valida que el nombre exista y tenga longitud minima
+        if not valor or not str(valor).strip() or len(str(valor).strip()) < 3:
+            raise ParametroFaltanteError("El nombre del servicio es obligatorio (minimo 3 caracteres).")
+        # Guarda el nombre limpio
+        self.__nombre = str(valor).strip()
+
+    @property
+    def tarifa_base(self) -> float:
+        """Retorna la tarifa base numerica del servicio."""
+        return self.__tarifa_base
+
+    @tarifa_base.setter
+    def tarifa_base(self, valor: float):
+        # Intenta convertir a flotante y encadena la excepcion si falla
+        try:
+            monto = float(valor)
+        except (TypeError, ValueError) as exc:
+            raise DatoInvalidoError(f"Tarifa base invalida: '{valor}'. Debe ser numerica.") from exc
+        # Verifica que la tarifa sea positiva
+        if monto <= 0:
+            raise DatoInvalidoError(f"Tarifa base invalida: '{monto}'. Debe ser mayor a cero.")
+        # Almacena el valor validado
+        self.__tarifa_base = round(monto, 2)
+
+    @property
+    def disponible(self) -> bool:
+        """Indica si el servicio esta habilitado para reservas."""
+        return self.__disponible
+
+    @disponible.setter
+    def disponible(self, estado: bool):
+        # Valida que el estado sea booleano
+        if not isinstance(estado, bool):
+            raise DatoInvalidoError(f"Estado de disponibilidad invalido: '{estado}'. Use True o False.")
+        # Actualiza disponibilidad
+        self.__disponible = estado
+
+    def verificar_disponibilidad(self) -> bool:
+        """Comprueba si el servicio puede reservarse; lanza error si no esta disponible."""
+        # Si el servicio no esta disponible, lanza excepcion de dominio
+        if not self.__disponible:
+            raise ServicioNoDisponibleError(
+                f"El servicio '{self.nombre}' [{self.id_entidad}] no esta disponible actualmente."
+            )
+        return True
+
+    @abstractmethod
+    def calcular_costo(self, unidades: int) -> float:
+        """Metodo polimorfico para calcular el costo segun las unidades solicitadas."""
+        pass
+
+    def validar(self) -> bool:
+        """Valida la integridad basica del servicio."""
+        # Confirma que nombre y tarifa esten presentes
+        if not self.__nombre or self.__tarifa_base <= 0:
+            raise ParametroFaltanteError("Datos incompletos o invalidos en el servicio.")
+        return True
+
+    def obtener_resumen(self) -> str:
+        """Retorna una descripcion resumida del servicio."""
+        estado_txt = "Disponible" if self.disponible else "No disponible"
+        return (
+            f"Servicio [{self.id_entidad}] | Nombre: {self.nombre} | "
+            f"Tarifa Base: ${self.tarifa_base:.2f} | Estado: {estado_txt}"
+        )
 
 class Servicio(EntidadBase):
     """Clase abstracta que define el contrato base para los servicios de Software FJ."""

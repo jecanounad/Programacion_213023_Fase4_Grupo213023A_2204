@@ -1,0 +1,20 @@
+[2026-11-22 19:26:22] [INFO] [Sistema] === INICIO DE EJECUCION SISTEMA SOFTWARE FJ ===
+[2026-11-22 19:26:22] [INFO] [Clientes] Cliente registrado: Cliente [CLI-01] | Nombre: Laura Valentina Gomez | Doc: 1053849201 | Email: laura.gomez@empresa.co | Tel: 3104567890
+[2026-11-22 19:26:22] [INFO] [Clientes] Cliente registrado: Cliente [CLI-02] | Nombre: Carlos Andres Mendoza | Doc: 75098321 | Email: cmendoza@techcorp.com | Tel: 3209876543
+[2026-11-22 19:26:22] [ERROR] [Clientes] Fallo registro cliente CLI-03 | Codigo: ERR-101 | Detalle: DatoInvalidoError("Documento invalido: '123'. Debe ser numerico (6 a 15 digitos).")
+[2026-11-22 19:26:22] [INFO] [Servicios] Servicio agregado: [SRV-01] Sala 'Sala Innovacion 4K' (Cap: 20 pers, Con Proyector 4K) - $80,000/h | Estado: DISPONIBLE
+[2026-11-22 19:26:22] [INFO] [Servicios] Servicio agregado: [SRV-02] Equipo 'Dell Precision RTX' [Gama WORKSTATION, Con Seguro] - $45,000/h | Estado: DISPONIBLE
+[2026-11-22 19:26:22] [INFO] [Servicios] Servicio agregado: [SRV-03] Asesoria 'Auditoria DevSecOps' (Ciberseguridad - PRIORIDAD URGENTE) - $120,000/h | Estado: DISPONIBLE
+[2026-11-22 19:26:22] [ERROR] [Servicios] Fallo controlado al crear SRV-99 | Codigo: ERR-101 | Detalle: DatoInvalidoError("La tarifa 'GRATIS' no es un numero valido.") | Causa original encadenada: ValueError("could not convert string to float: 'GRATIS'")
+[2026-11-22 19:26:22] [INFO] [reservas.py] Total calculado para reserva 'RES-01': $358,785.00.
+[2026-11-22 19:26:22] [INFO] [reservas.py] Reserva 'RES-01' creada en estado PENDIENTE para 'Laura Valentina Gomez'.
+[2026-11-22 19:26:22] [INFO] [reservas.py] Total calculado para reserva 'RES-01': $358,785.00.
+[2026-11-22 19:26:22] [INFO] [reservas.py] Reserva 'RES-01' CONFIRMADA por $358,785.00.
+[2026-11-22 19:26:22] [INFO] [reservas.py] Total calculado para reserva 'RES-02': $208,250.00.
+[2026-11-22 19:26:22] [INFO] [reservas.py] Reserva 'RES-02' creada en estado PENDIENTE para 'Carlos Andres Mendoza'.
+[2026-11-22 19:26:22] [INFO] [reservas.py] Total calculado para reserva 'RES-04': $508,725.00.
+[2026-11-22 19:26:22] [INFO] [reservas.py] Reserva 'RES-04' creada en estado PENDIENTE para 'Carlos Andres Mendoza'.
+[2026-11-22 19:26:22] [INFO] [reservas.py] Total calculado para reserva 'RES-04': $508,725.00.
+[2026-11-22 19:26:22] [INFO] [reservas.py] Reserva 'RES-04' CONFIRMADA por $508,725.00.
+[2026-11-22 19:26:22] [INFO] [reservas.py] Reserva 'RES-04' COMPLETADA.
+[2026-11-22 19:26:22] [INFO] [Sistema] === FIN DE EJECUCION SISTEMA SOFTWARE FJ ===
