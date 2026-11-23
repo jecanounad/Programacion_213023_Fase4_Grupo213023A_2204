@@ -27,9 +27,9 @@ El sistema implementa:
 | :--- | :--- | :--- |
 | `excepciones_y_logs.py` | Jerarquía de excepciones personalizadas y gestor de auditoría en archivo `.log`. | John Eyder Cano Chavez (`jecanounad`) |
 | `modelos_base.py` | Clase abstracta `EntidadBase` y clase `Cliente` con encapsulación y validaciones. | John Eyder Cano Chavez (`jecanounad`) |
-| `servicios.py` | Clase abstracta `Servicio` y servicios especializados (`ReservaSala`, `AlquilerEquipo`, `AsesoriaEspecializada`). | Juan Esteban Saavedra Guevara |
-| `reservas.py` | Clase `Reserva` con gestión de estados, confirmación, cancelación y procesamiento. | Juan Esteban Saavedra Guevara |
-| `main.py` | Controlador principal en memoria y ejecución secuencial de 12 operaciones de prueba. | Juan Esteban Saavedra Guevara |
+| `servicios.py` | Clase abstracta `Servicio` y servicios especializados (`ReservaSala`, `AlquilerEquipo`, `AsesoriaEspecializada`). | Juan Esteban Saavedra Guevara (`BADFOX63`)|
+| `reservas.py` | Clase `Reserva` con gestión de estados, confirmación, cancelación y procesamiento. | Juan Esteban Saavedra Guevara (`BADFOX63`) |
+| `main.py` | Controlador principal en memoria y ejecución secuencial de 12 operaciones de prueba. | Juan Esteban Saavedra Guevara (`BADFOX63`) |
 
 ---
 
